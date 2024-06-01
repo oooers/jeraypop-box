@@ -1,11 +1,6 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 
-
-def keystorePropertiesFile = rootProject.file("Keystore.properties")
-def keystoreProperties = new Properties()
-keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-
 android {
     compileSdkVersion 33
 
@@ -49,11 +44,10 @@ android {
 
     signingConfigs {
         config {
-            keyAlias keystoreProperties['yeskeyAlias']
-            keyPassword keystoreProperties['yeskeyPassword']
-            storeFile file(keystoreProperties['yesstoreFilePath'])
-            storePassword keystoreProperties['yesstorePassword']
-
+            keyAlias 'TVBoxOSC'
+            keyPassword 'TVBoxOSC'
+            storeFile file('..\\TVBoxOSC.jks')
+            storePassword 'TVBoxOSC'
         }
     }
 
