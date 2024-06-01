@@ -5,7 +5,15 @@ on:
 #    branches:
 #      - main
 #  pull_request:
+ defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 33
+        compileSdkVersion 33
+        versionCode 1
+        versionName version
+    }
   workflow_dispatch:
+  
 
 jobs:
   build:
