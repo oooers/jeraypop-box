@@ -23,6 +23,7 @@ public class RefreshEvent {
     public static final int TYPE_BATTERY_CHANGE = 14;
     public static final int TYPE_REFRESH_NOTIFY = 15;
     public static final int TYPE_PIP_HOME = 16;
+    public static final int TYPE_SWITCH_XIAN = 17;
 
     public int type;
     public Object obj;

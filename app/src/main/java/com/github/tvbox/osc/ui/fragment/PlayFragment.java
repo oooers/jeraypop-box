@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -281,7 +282,9 @@ public class PlayFragment extends BaseLazyFragment {
 
             @Override
             public void errReplay() {
-                errorWithRetry("视频播放出错", false);
+//                errorWithRetry("视频播放出错", false);
+                //999
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SWITCH_XIAN, 0));
             }
 
             @Override
@@ -644,6 +647,7 @@ public class PlayFragment extends BaseLazyFragment {
     }
 
     void setTip(String msg, boolean loading, boolean err) {
+        Log.e("修复", "msg=: "+msg);
         if (!isAdded()) return;
         //影魔
         requireActivity().runOnUiThread(() -> {
@@ -1058,8 +1062,10 @@ public class PlayFragment extends BaseLazyFragment {
 //                        Toast.makeText(mContext, "获取播放信息错误1", Toast.LENGTH_SHORT).show();
                 }
             } else {
-                errorWithRetry("获取播放信息错误", true);
+//                errorWithRetry("获取播放信息错误", true);
+                errorWithRetry("该线路异常,自动切换下一个", true);
 //                    Toast.makeText(mContext, "获取播放信息错误", Toast.LENGTH_SHORT).show();
+                EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_SWITCH_XIAN, 0));
             }
         }
     };

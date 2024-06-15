@@ -53,6 +53,7 @@ import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.receiver.BatteryReceiver;
 import com.github.tvbox.osc.service.PlayService;
 import com.github.tvbox.osc.ui.adapter.ParseAdapter;
+import com.github.tvbox.osc.ui.adapter.QuickSearchAdapter;
 import com.github.tvbox.osc.ui.adapter.SeriesAdapter;
 import com.github.tvbox.osc.ui.adapter.SeriesFlagAdapter;
 import com.github.tvbox.osc.ui.dialog.AllVodSeriesBottomDialog;
@@ -109,6 +110,7 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
     private SourceViewModel sourceViewModel;
     private Movie.Video mVideo;
     private VodInfo vodInfo;
+    public QuickSearchAdapter quickSearchAdapter;
     public SeriesFlagAdapter seriesFlagAdapter;
     public SeriesAdapter seriesAdapter;
     public String vodId;
@@ -133,6 +135,8 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
 
 
     boolean openBackgroundPip;
+    public static long time_Switch=0;
+    volatile int i=0;
     @Override
     protected void init() {
         initReceiver();
@@ -158,6 +162,8 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
     }
 
     private void initView() {
+
+
         mBinding.ivPrivateBrowsing.setVisibility(Hawk.get(HawkConfig.PRIVATE_BROWSING, false)?View.VISIBLE:View.GONE);
         mBinding.ivPrivateBrowsing.setOnClickListener(view -> ToastUtils.showShort("当前为无痕浏览"));
         mBinding.previewPlayerPlace.setVisibility(showPreview ? View.VISIBLE : View.GONE);
@@ -169,8 +175,8 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
         seriesAdapter = new SeriesAdapter(false);
         mBinding.mGridView.setAdapter(seriesAdapter);
         mBinding.mGridViewFlag.setHasFixedSize(true);
-        mBinding.mGridViewFlag.setLayoutManager(new V7LinearLayoutManager(this.mContext, 0, false));
         seriesFlagAdapter = new SeriesFlagAdapter();
+        quickSearchAdapter = new QuickSearchAdapter();
         mBinding.mGridViewFlag.setAdapter(seriesFlagAdapter);
         isReverse = false;
         preFlag = "";
@@ -180,6 +186,8 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
             getSupportFragmentManager().beginTransaction().show(playFragment).commitAllowingStateLoss();
         }
 
+
+        
         findViewById(R.id.ll_title).setOnClickListener(view -> {
             new XPopup.Builder(this)
                     .isViewMode(true)
@@ -263,6 +271,26 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
                 }
             });
         });
+
+        mBinding.tvSiteNext.setOnClickListener(view -> {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (!quickSearchDataNext.isEmpty()) {
+                        loadDetail(quickSearchDataNext.get(i).id, quickSearchDataNext.get(i).sourceKey);
+
+                        if (i<quickSearchDataNext.size()-1) {
+                            i++;
+                        } else {
+                            ToastUtils.showShort("该影片暂无可用源");
+                        }
+                    }
+                }
+            });
+
+
+        });
+
         mBinding.tvChangeLine.setOnClickListener(v -> {
             FastClickCheckUtil.check(v);
             quickLineChange();
@@ -542,6 +570,8 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
                         mBinding.mGridView.setVisibility(View.GONE);
                         mBinding.mEmptyPlaylist.setVisibility(View.VISIBLE);
                     }
+                    //自动换源 准备工作
+                    startQuickSearch();
                 } else {
                     showEmpty();
                     mBinding.previewPlayer.setVisibility(View.GONE);
@@ -619,12 +649,29 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
             } catch (Exception e) {
                 searchData(null);
             }
+            try {
+                searchDataNext(event.obj == null ? null : (AbsXml) event.obj);
+            } catch (Exception e) {
+                searchDataNext(null);
+            }
+
+        } else if (event.type == RefreshEvent.TYPE_SWITCH_XIAN) {
+            if (System.currentTimeMillis() - time_Switch > 0) {
+
+                Log.e("换线", "refresh: ");
+                quickLineChangeAuto();
+                time_Switch = System.currentTimeMillis();
+            }
+
         }
+
+
     }
 
     private String searchTitle = "";
     private boolean hadQuickStart = false;
     private final List<Movie.Video> quickSearchData = new ArrayList<>();
+    private final List<Movie.Video> quickSearchDataNext = new ArrayList<>();
     private final List<String> quickSearchWord = new ArrayList<>();
     private ExecutorService searchExecutorService = null;
 
@@ -644,6 +691,7 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
         quickSearchWord.clear();
         searchTitle = mVideo.name;
         quickSearchData.clear();
+        quickSearchDataNext.clear();
         quickSearchWord.addAll(SearchHelper.splitWords(searchTitle));
         // 分词
         OkGo.<String>get("http://api.pullword.com/get.php?source=" + URLEncoder.encode(searchTitle) + "&param1=0&param2=0&json=1")
@@ -655,6 +703,7 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
                             return response.body().string();
                         } else {
                             throw new IllegalStateException("网络请求错误");
+
                         }
                     }
 
@@ -729,6 +778,33 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
             quickSearchData.addAll(data);
             EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH, data));
         }
+    }
+
+    private void searchDataNext(AbsXml absXml) {
+        if (absXml != null && absXml.movie != null && absXml.movie.videoList != null && absXml.movie.videoList.size() > 0) {
+            List<Movie.Video> data = new ArrayList<>();
+            for (Movie.Video video : absXml.movie.videoList) {
+                //自动换源增加
+                if (!matchSearchResult(video.name, mVideo.name)) continue;
+                // 去除当前相同的影片
+                if (video.sourceKey.equals(sourceKey) && video.id.equals(vodId))
+                    continue;
+                data.add(video);
+            }
+            quickSearchDataNext.addAll(data);
+//            EventBus.getDefault().post(new RefreshEvent(RefreshEvent.TYPE_QUICK_SEARCH, data));
+        }
+    }
+
+    private boolean matchSearchResult(String name, String searchTitle) {
+        if (TextUtils.isEmpty(name) || TextUtils.isEmpty(searchTitle)) return false;
+        searchTitle = searchTitle.trim();
+        String[] arr = searchTitle.split("\\s+");
+        int matchNum = 0;
+        for(String one : arr) {
+            if (name.contains(one)) matchNum++;
+        }
+        return matchNum == arr.length ? true : false;
     }
 
     private void insertVod(String sourceKey, VodInfo vodInfo) {
@@ -998,7 +1074,6 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
     public String getCurrentVodUrl(){
         return playFragment==null?"":playFragment.getFinalUrl();
     }
-
     public void quickLineChange(){
         List<VodInfo.VodSeriesFlag> flags = seriesFlagAdapter.getData();
         if (flags.size()>1){
@@ -1015,6 +1090,33 @@ public class DetailActivity extends BaseVbActivity<ActivityDetailBinding> {
             mBinding.mGridViewFlag.smoothScrollToPosition(currentIndex);
             chooseFlag(currentIndex);
             mBinding.mGridView.postDelayed(() -> chooseSeries(vodInfo.playIndex,true),300);
+        }
+    }
+
+    public void quickLineChangeAuto(){
+        List<VodInfo.VodSeriesFlag> flags = seriesFlagAdapter.getData();
+        if (flags.size()>1){
+            int currentIndex = 0;
+            for (int i = 0; i <flags.size(); i++) {
+                if (flags.get(i).selected){
+                    currentIndex = i;
+                }
+            }
+            currentIndex+=1;
+            if (currentIndex>=flags.size()){
+                currentIndex = 0;
+                return;
+            }
+            mBinding.mGridViewFlag.smoothScrollToPosition(currentIndex);
+            chooseFlag(currentIndex);
+            mBinding.mGridView.postDelayed(() -> chooseSeries(vodInfo.playIndex,true),300);
+        }
+    }
+    public void quickYuanChange(){
+        List<Movie.Video> flags = quickSearchAdapter.getData();
+        if (flags.size()>1){
+
+
         }
     }
 

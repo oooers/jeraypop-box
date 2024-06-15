@@ -31,6 +31,7 @@ import com.github.tvbox.osc.R;
 import com.github.tvbox.osc.api.ApiConfig;
 import com.github.tvbox.osc.bean.IJKCode;
 import com.github.tvbox.osc.bean.ParseBean;
+import com.github.tvbox.osc.bean.VodInfo;
 import com.github.tvbox.osc.constant.CacheConst;
 import com.github.tvbox.osc.event.RefreshEvent;
 import com.github.tvbox.osc.subtitle.widget.SimpleSubtitleView;
@@ -384,6 +385,13 @@ public class VodController extends BaseController {
                 hideBottom();
             }
         });
+        //==
+        findViewById(R.id.switch_source).setOnClickListener(view -> {
+//            FastClickCheckUtil.check(view);
+//            quickLineChange();
+        });
+
+        //==
         mPlayerScaleBtn.setOnClickListener(view -> {
             myHandle.removeCallbacks(myRunnable);
             myHandle.postDelayed(myRunnable, dismissTimeOperationBar);
@@ -640,6 +648,7 @@ public class VodController extends BaseController {
             }
         }
     }
+
 
 
 

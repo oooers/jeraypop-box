@@ -1,6 +1,11 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 
+
+def keystorePropertiesFile = rootProject.file("Keystore.properties")
+def keystoreProperties = new Properties()
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
 android {
     compileSdkVersion 33
 
@@ -44,10 +49,11 @@ android {
 
     signingConfigs {
         config {
-            keyAlias 'TVBoxOSC'
-            keyPassword 'TVBoxOSC'
-            storeFile file('..\\TVBoxOSC.jks')
-            storePassword 'TVBoxOSC'
+            keyAlias keystoreProperties['yeskeyAlias']
+            keyPassword keystoreProperties['yeskeyPassword']
+            storeFile file(keystoreProperties['yesstoreFilePath'])
+            storePassword keystoreProperties['yesstorePassword']
+
         }
     }
 
@@ -169,4 +175,6 @@ dependencies {
     implementation project(":crash")
     //dlna投屏
     implementation 'com.github.devin1014.DLNA-Cast:dlna-dmc:V1.0.0'
+    // Lifecycles only (without ViewModel or LiveData)
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.2.0"
 }
